@@ -94,4 +94,13 @@ contract PresaleTest is Test {
         assertEq(owner.balance, initialBalance + amount_);
     }
 
+    function testEmergencyWithdrawEthFailedIfNotOwner() public {
+        uint256 amount_ = 10000000 * 1e18;
+        vm.deal(address(presale), amount_);
+        vm.prank(vm.addr(2));
+        vm.expectRevert();
+        presale.emergencyWithdrawEth();
+        vm.stopPrank();
+    }
+
 }
