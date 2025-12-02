@@ -28,20 +28,20 @@ contract PresaleTest is Test {
         phases_[0] = [10000000 * 1e18, 5000, block.timestamp + 1000];
         phases_[1] = [10000000 * 1e18, 500, block.timestamp + 1000];
         phases_[2] = [10000000 * 1e18, 50, block.timestamp + 1000];
-       
+
         // Crear mock de token ERC20
         saleToken = new ERC20Mock();
         saleTokenAddress_ = address(saleToken);
-        
+
         // Mintear tokens al contrato de test
         saleToken.mint(address(this), maxSellingAmount_);
-        
+
         // Calcular la dirección del contrato Presale antes de deployarlo
         address presaleAddress = vm.computeCreateAddress(address(this), vm.getNonce(address(this)));
-        
+
         // Hacer approve desde el contrato de test hacia el contrato Presale
         saleToken.approve(presaleAddress, maxSellingAmount_);
-       
+
         presale = new Presale(
             saleTokenAddress_,
             usdtAddress_,
@@ -68,9 +68,9 @@ contract PresaleTest is Test {
     function testEmergencyWithdrawSuccessfullIfOwner() public {
         vm.prank(address(presale.owner()));
         uint256 amount_ = 10000000 * 1e18;
-        IERC20(saleTokenAddress_).approve(address(presale),amount_);
+        IERC20(saleTokenAddress_).approve(address(presale), amount_);
         presale.emergencyWithdraw(saleTokenAddress_, amount_);
-        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_- amount_);
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_ - amount_);
         assertEq(saleToken.balanceOf(address(presale.owner())), amount_);
         vm.stopPrank();
     }
@@ -93,5 +93,4 @@ contract PresaleTest is Test {
         assertEq(address(presale.owner()).balance, amount_);
         vm.stopPrank();
     }*/
-
 }
