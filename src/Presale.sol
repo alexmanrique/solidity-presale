@@ -29,15 +29,15 @@ contract Presale is Ownable {
     event TokensClaimed(address user, uint256 amount);
 
     constructor(
+        address saleTokenAddress_,
         address usdtAddress_,
         address usdcAddress_,
         address fundsReceiverAddress_,
+        address dataFeedAddress_,
         uint256 maxSellingAmount_,
         uint256[][3] memory phases_,
         uint256 startingTime_,
-        uint256 endingTime_,
-        address dataFeedAddress_,
-        address saleTokenAddress_
+        uint256 endingTime_
     ) Ownable(msg.sender) {
         usdtAddress = usdtAddress_;
         usdcAddress = usdcAddress_;
