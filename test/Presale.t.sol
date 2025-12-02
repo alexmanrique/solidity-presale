@@ -83,14 +83,15 @@ contract PresaleTest is Test {
         vm.stopPrank();
     }
 
-    /*function testEmergencyWithdrawEthSuccessfullIfOwner() public {
-        vm.prank(address(presale.owner()));
-        console2.log("balance", address(presale).balance);
+    function testEmergencyWithdrawEthSuccessfullIfOwner() public {
+        address owner = address(presale.owner());
+        uint256 initialBalance = owner.balance;
         uint256 amount_ = 10000000 * 1e18;
         vm.deal(address(presale), amount_);
+        vm.prank(owner);
         presale.emergencyWithdrawEth();
-        //assertEq(address(presale).balance, 0);
-        assertEq(address(presale.owner()).balance, amount_);
-        vm.stopPrank();
-    }*/
+        assertEq(address(presale).balance, 0);
+        assertEq(owner.balance, initialBalance + amount_);
+    }
+
 }
