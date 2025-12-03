@@ -408,5 +408,4 @@ contract PresaleTest is Test {
         presale.claimTokens();
         vm.stopPrank();
     }
-
 }
