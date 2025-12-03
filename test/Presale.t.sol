@@ -53,12 +53,12 @@ contract PresaleTest is Test {
     USDTMock usdtToken;
     USDCMock usdcToken;
     WETHMock wethToken;
-    
+
     address saleTokenAddress_;
     address usdtAddress_;
     address usdcAddress_;
     address wethAddress_;
-    
+
     address fundsReceiverAddress_ = vm.addr(4);
     address dataFeedAddress_ = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
     uint256 maxSellingAmount_ = 30000000 * 1e18;
@@ -81,7 +81,7 @@ contract PresaleTest is Test {
         // Crear mocks de USDT y USDC
         usdtToken = new USDTMock();
         usdtAddress_ = address(usdtToken);
-        
+
         usdcToken = new USDCMock();
         usdcAddress_ = address(usdcToken);
 
@@ -150,7 +150,7 @@ contract PresaleTest is Test {
         assertEq(owner.balance, initialBalance + amount_);
     }
 
-   function testEmergencyWithdrawEthFailedIfNotOwner() public {
+    function testEmergencyWithdrawEthFailedIfNotOwner() public {
         uint256 amount_ = 10000000 * 1e18;
         vm.deal(address(presale), amount_);
         vm.prank(vm.addr(2));
@@ -191,67 +191,66 @@ contract PresaleTest is Test {
 
     function testBuyWithUsdtSuccessfull() public {
         vm.warp(phases_[0][2] - 500);
-        
+
         address buyer = vm.addr(2);
         uint256 amount_ = 10 * 1e6; // USDT tiene 6 decimales
-        
+
         // Mintear USDT al comprador
         usdtToken.mint(buyer, amount_);
-        
+
         // Calcular cuántos tokens debería recibir
         // Para USDT con 6 decimales: amount_ * 10^(18-6) * 1e6 / phases[0][1]
         // = amount_ * 1e12 * 1e6 / 5000 = amount_ * 1e18 / 5000
         uint256 expectedTokens = amount_ * 1e12 * 1e6 / phases_[0][1];
-        
+
         // Aprobar el contrato presale para transferir USDT y realizar la compra
         vm.startPrank(buyer);
         usdtToken.approve(address(presale), amount_);
         presale.buyWithStable(usdtAddress_, amount_);
         vm.stopPrank();
-        
+
         // Verificar que el fundsReceiverAddress recibió los USDT
         assertEq(usdtToken.balanceOf(fundsReceiverAddress_), amount_);
-        
+
         // Verificar que el balance del usuario se actualizó correctamente
         assertEq(presale.userTokenBalance(buyer), expectedTokens);
-        
+
         // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
         assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
     }
 
-
     function testBuyWithUsdcSuccessfull() public {
         vm.warp(phases_[0][2] - 500);
-        
+
         address buyer = vm.addr(2);
         uint256 amount_ = 10 * 1e6; // USDC tiene 6 decimales
-        
+
         // Mintear USDC al comprador
         usdcToken.mint(buyer, amount_);
-        
+
         uint256 expectedTokens = amount_ * 1e12 * 1e6 / phases_[0][1];
 
         vm.startPrank(buyer);
         usdcToken.approve(address(presale), amount_);
         presale.buyWithStable(usdcAddress_, amount_);
         vm.stopPrank();
-        
+
         // Verificar que el fundsReceiverAddress recibió los USDC
         assertEq(usdcToken.balanceOf(fundsReceiverAddress_), amount_);
-        
+
         // Verificar que el balance del usuario se actualizó correctamente
         assertEq(presale.userTokenBalance(buyer), expectedTokens);
-        
+
         // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
         assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
     }
 
     function testBuyWithWethSuccessfull() public {
         vm.warp(phases_[0][2] - 500);
-        
+
         address buyer = vm.addr(2);
         uint256 amount_ = 10 * 1e18; // WETH tiene 18 decimales
-        
+
         // Mintear WETH al comprador
         wethToken.mint(buyer, amount_);
 
@@ -261,18 +260,37 @@ contract PresaleTest is Test {
         wethToken.approve(address(presale), amount_);
         presale.buyWithStable(wethAddress_, amount_);
         vm.stopPrank();
-        
+
         // Verificar que el fundsReceiverAddress recibió los WETH
         assertEq(wethToken.balanceOf(fundsReceiverAddress_), amount_);
-        
+
         // Verificar que el balance del usuario se actualizó correctamente
         assertEq(presale.userTokenBalance(buyer), expectedTokens);
-        
+
         // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
         assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
     }
 
-     /*
+    function testPhaseSoldOut() public {
+        vm.warp(phases_[0][2] - 500);
+
+        address buyer = vm.addr(2);
+        // Convertir maxSellingAmount_ (tokens de venta) a WETH equivalente
+        // Fórmula inversa: amountWETH = maxSellingAmount_ * precio / 1e6
+        uint256 maxSellingAmountInWeth = maxSellingAmount_ * phases_[0][1] / 1e6;
+        uint256 amount_ = maxSellingAmountInWeth + 1 * 1e18; // Un poco más para que falle
+
+        // Mintear WETH al comprador
+        wethToken.mint(buyer, amount_);
+
+        vm.startPrank(buyer);
+        wethToken.approve(address(presale), amount_);
+        vm.expectRevert("Sold out");
+        presale.buyWithStable(wethAddress_, amount_);
+        vm.stopPrank();
+    }
+
+    /*
      function testClaimTokensFailureIfStillInPreSaleTime() public {
         vm.prank(vm.addr(2));
         vm.warp(endingTime_ - 1000);
@@ -280,5 +298,4 @@ contract PresaleTest is Test {
         presale.claimTokens();
         vm.stopPrank();
     }*/
-
 }

@@ -68,7 +68,10 @@ contract Presale is Ownable {
     function buyWithStable(address tokenUsedToBuy_, uint256 amount_) external {
         require(!isBlackListed[msg.sender], "You are blacklisted");
         require(block.timestamp >= startingTime && block.timestamp <= endingTime, "Presale is not active");
-        require(tokenUsedToBuy_ == usdtAddress || tokenUsedToBuy_ == usdcAddress || tokenUsedToBuy_ == wethAddress, "Invalid token");
+        require(
+            tokenUsedToBuy_ == usdtAddress || tokenUsedToBuy_ == usdcAddress || tokenUsedToBuy_ == wethAddress,
+            "Invalid token"
+        );
 
         uint256 tokenAmountToReceive;
 
