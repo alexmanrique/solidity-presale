@@ -290,6 +290,35 @@ contract PresaleTest is Test {
         vm.stopPrank();
     }
 
+    function testBuyWithEthBlacklistedFailure() public {
+        presale.blackList(vm.addr(4));
+        vm.startPrank(vm.addr(4));
+        uint256 amount_ = 10000000 * 1e18;
+        vm.deal(vm.addr(4), amount_);
+        vm.expectRevert("You are blacklisted");
+        presale.buyWithEth{value: amount_}();
+        vm.stopPrank();
+    }
+
+    function testBuyWithEthNotActiveFailure() public {
+        vm.warp(endingTime_ + 1000);
+        vm.startPrank(vm.addr(4));
+        uint256 amount_ = 10000000 * 1e18;
+        vm.deal(vm.addr(4), amount_);
+        vm.expectRevert("Presale is not active");
+        presale.buyWithEth{value: amount_}();
+        vm.stopPrank();
+    }
+
+    function testBuyWithEthSoldOutFailure() public {
+        vm.warp(phases_[0][2] - 500);
+        vm.startPrank(vm.addr(4));
+        uint256 amount_ = 10000000 * 1e18;
+        vm.deal(vm.addr(4), amount_);
+        vm.expectRevert("Sold out");
+        presale.buyWithEth{value: amount_}();
+        vm.stopPrank();
+    }
     /*
      function testClaimTokensFailureIfStillInPreSaleTime() public {
         vm.prank(vm.addr(2));
