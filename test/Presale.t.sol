@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.30;
 
-import {Test} from "forge-std/Test.sol";
-import {console2} from "forge-std/console2.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
+import {console2} from "../lib/forge-std/src/console2.sol";
 import {Presale} from "../src/Presale.sol";
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20Mock} from "../lib/openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
@@ -94,7 +94,7 @@ contract PresaleTest is Test {
         assertEq(owner.balance, initialBalance + amount_);
     }
 
-    function testEmergencyWithdrawEthFailedIfNotOwner() public {
+   function testEmergencyWithdrawEthFailedIfNotOwner() public {
         uint256 amount_ = 10000000 * 1e18;
         vm.deal(address(presale), amount_);
         vm.prank(vm.addr(2));
@@ -102,5 +102,55 @@ contract PresaleTest is Test {
         presale.emergencyWithdrawEth();
         vm.stopPrank();
     }
+
+    function testClaimTokensFailureIfNotTokensToClaim() public {
+        vm.prank(vm.addr(2));
+        vm.expectRevert();
+        presale.claimTokens();
+        vm.stopPrank();
+    }
+
+    function testBuyWithStableFailureIfBlacklisted() public {
+        presale.blackList(vm.addr(2));
+        vm.prank(vm.addr(2));
+        vm.expectRevert("You are blacklisted");
+        presale.buyWithStable(usdtAddress_, 10000000 * 1e18);
+        vm.stopPrank();
+    }
+
+    function testBuyWithStableFailureIfNotActive() public {
+        vm.warp(endingTime_ + 1000);
+        vm.prank(vm.addr(2));
+        vm.expectRevert("Presale is not active");
+        presale.buyWithStable(usdtAddress_, 10000000 * 1e18);
+        vm.stopPrank();
+    }
+
+    function testBuyWithStableFailureIfInvalidToken() public {
+        vm.prank(vm.addr(2));
+        vm.expectRevert("Invalid token");
+        presale.buyWithStable(address(0), 10000000 * 1e18);
+        vm.stopPrank();
+    }
+
+    /*function testBuyWithStable() public {
+        vm.prank(vm.addr(2));
+        vm.warp(phases_[0][2] - 500);
+        uint256 amount_ = 100000000 * 1e18;
+        presale.buyWithStable(usdtAddress_, amount_);
+        assertEq(fundsReceiverAddress_.balance, amount_);
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_ - amount_);
+        assertEq(saleToken.balanceOf(address(vm.addr(2))), amount_);
+        vm.stopPrank();
+    }*/
+
+     /*
+     function testClaimTokensFailureIfStillInPreSaleTime() public {
+        vm.prank(vm.addr(2));
+        vm.warp(endingTime_ - 1000);
+        vm.expectRevert();
+        presale.claimTokens();
+        vm.stopPrank();
+    }*/
 
 }
