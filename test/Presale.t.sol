@@ -359,12 +359,54 @@ contract PresaleTest is Test {
         // Los tokens no se transfieren hasta claimTokens(), así que el balance del contrato sigue siendo maxSellingAmount_
         assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
     }
-    /*
-     function testClaimTokensFailureIfStillInPreSaleTime() public {
-        vm.prank(vm.addr(2));
-        vm.warp(endingTime_ - 1000);
-        vm.expectRevert();
+
+    function testClaimTokensSuccessfull() public {
+        address buyer = vm.addr(2);
+        uint256 amount_ = 10 * 1e6; // USDC tiene 6 decimales
+
+        // Mintear USDC al comprador
+        usdcToken.mint(buyer, amount_);
+
+        uint256 expectedTokens = amount_ * 1e12 * 1e6 / phases_[0][1];
+
+        // Primero comprar tokens durante el presale activo
+        vm.startPrank(buyer);
+        usdcToken.approve(address(presale), amount_);
+        presale.buyWithStable(usdcAddress_, amount_);
+        vm.stopPrank();
+
+        // Avanzar el tiempo después del endingTime para poder reclamar
+        vm.warp(endingTime_ + 1);
+
+        // Ahora reclamar los tokens
+        vm.startPrank(buyer);
         presale.claimTokens();
         vm.stopPrank();
-    }*/
+        assertEq(saleToken.balanceOf(vm.addr(2)), expectedTokens);
+    }
+
+    function testNoTokensToClaimFailure() public {
+        vm.warp(endingTime_ - 1);
+        vm.prank(vm.addr(2));
+        vm.expectRevert("No tokens to claim");
+        presale.claimTokens();
+        vm.stopPrank();
+    }
+
+    function testClaimTokensPresaleNotOverFailure() public {
+        address buyer = vm.addr(2);
+        uint256 amount_ = 10 * 1e6; // USDC tiene 6 decimales
+        vm.warp(phases_[0][2] - 500);
+        // Mintear USDC al comprador
+        usdcToken.mint(buyer, amount_);
+        // Primero comprar tokens durante el presale activo
+        vm.startPrank(buyer);
+        usdcToken.approve(address(presale), amount_);
+        presale.buyWithStable(usdcAddress_, amount_);
+        vm.warp(endingTime_ - 1);
+        vm.expectRevert("Presale is not over");
+        presale.claimTokens();
+        vm.stopPrank();
+    }
+
 }

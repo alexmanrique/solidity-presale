@@ -125,10 +125,11 @@ contract Presale is Ownable {
         require(userTokenBalance[msg.sender] > 0, "No tokens to claim");
         require(block.timestamp > endingTime, "Presale is not over");
 
+        uint256 amount = userTokenBalance[msg.sender];
         delete userTokenBalance[msg.sender];
-        IERC20(saleTokenAddress).safeTransfer(msg.sender, userTokenBalance[msg.sender]);
+        IERC20(saleTokenAddress).safeTransfer(msg.sender, amount);
 
-        emit TokensClaimed(msg.sender, userTokenBalance[msg.sender]);
+        emit TokensClaimed(msg.sender, amount);
     }
 
     function emergencyWithdraw(address tokenAddress_, uint256 amount_) external onlyOwner {
