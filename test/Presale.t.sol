@@ -7,13 +7,42 @@ import {console2} from "../lib/forge-std/src/console2.sol";
 import {Presale} from "../src/Presale.sol";
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20Mock} from "../lib/openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
+import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+
+// Mock para USDT con 6 decimales
+contract USDTMock is ERC20 {
+    constructor() ERC20("Tether USD", "USDT") {}
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+}
+
+// Mock para USDC con 6 decimales
+contract USDCMock is ERC20 {
+    constructor() ERC20("USD Coin", "USDC") {}
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+}
 
 contract PresaleTest is Test {
     Presale presale;
     ERC20Mock saleToken;
+    USDTMock usdtToken;
+    USDCMock usdcToken;
     address saleTokenAddress_;
-    address usdtAddress_ = vm.addr(2);
-    address usdcAddress_ = vm.addr(3);
+    address usdtAddress_;
+    address usdcAddress_;
     address fundsReceiverAddress_ = vm.addr(4);
     address dataFeedAddress_ = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
     uint256 maxSellingAmount_ = 30000000 * 1e18;
@@ -32,6 +61,13 @@ contract PresaleTest is Test {
         // Crear mock de token ERC20
         saleToken = new ERC20Mock();
         saleTokenAddress_ = address(saleToken);
+
+        // Crear mocks de USDT y USDC
+        usdtToken = new USDTMock();
+        usdtAddress_ = address(usdtToken);
+        
+        usdcToken = new USDCMock();
+        usdcAddress_ = address(usdcToken);
 
         // Mintear tokens al contrato de test
         saleToken.mint(address(this), maxSellingAmount_);
@@ -133,16 +169,62 @@ contract PresaleTest is Test {
         vm.stopPrank();
     }
 
-    /*function testBuyWithStable() public {
-        vm.prank(vm.addr(2));
+    function testBuyWithUsdtSuccessfull() public {
         vm.warp(phases_[0][2] - 500);
-        uint256 amount_ = 100000000 * 1e18;
+        
+        address buyer = vm.addr(2);
+        uint256 amount_ = 10 * 1e6; // USDT tiene 6 decimales
+        
+        // Mintear USDT al comprador
+        usdtToken.mint(buyer, amount_);
+        
+        // Calcular cuántos tokens debería recibir
+        // Para USDT con 6 decimales: amount_ * 10^(18-6) * 1e6 / phases[0][1]
+        // = amount_ * 1e12 * 1e6 / 5000 = amount_ * 1e18 / 5000
+        uint256 expectedTokens = amount_ * 1e12 * 1e6 / phases_[0][1];
+        
+        // Aprobar el contrato presale para transferir USDT y realizar la compra
+        vm.startPrank(buyer);
+        usdtToken.approve(address(presale), amount_);
         presale.buyWithStable(usdtAddress_, amount_);
-        assertEq(fundsReceiverAddress_.balance, amount_);
-        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_ - amount_);
-        assertEq(saleToken.balanceOf(address(vm.addr(2))), amount_);
         vm.stopPrank();
-    }*/
+        
+        // Verificar que el fundsReceiverAddress recibió los USDT
+        assertEq(usdtToken.balanceOf(fundsReceiverAddress_), amount_);
+        
+        // Verificar que el balance del usuario se actualizó correctamente
+        assertEq(presale.userTokenBalance(buyer), expectedTokens);
+        
+        // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
+    }
+
+
+    function testBuyWithUsdcSuccessfull() public {
+        vm.warp(phases_[0][2] - 500);
+        
+        address buyer = vm.addr(2);
+        uint256 amount_ = 10 * 1e6; // USDC tiene 6 decimales
+        
+        // Mintear USDC al comprador
+        usdcToken.mint(buyer, amount_);
+        
+        uint256 expectedTokens = amount_ * 1e12 * 1e6 / phases_[0][1];
+
+        vm.startPrank(buyer);
+        usdcToken.approve(address(presale), amount_);
+        presale.buyWithStable(usdcAddress_, amount_);
+        vm.stopPrank();
+        
+        // Verificar que el fundsReceiverAddress recibió los USDC
+        assertEq(usdcToken.balanceOf(fundsReceiverAddress_), amount_);
+        
+        // Verificar que el balance del usuario se actualizó correctamente
+        assertEq(presale.userTokenBalance(buyer), expectedTokens);
+        
+        // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
+    }
 
      /*
      function testClaimTokensFailureIfStillInPreSaleTime() public {
