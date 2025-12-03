@@ -8,6 +8,7 @@ import {Presale} from "../src/Presale.sol";
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20Mock} from "../lib/openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {ERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {IAggregator} from "../src/interfaces/IAggregator.sol";
 
 // Mock para USDT con 6 decimales
 contract USDTMock is ERC20 {
@@ -47,19 +48,30 @@ contract WETHMock is ERC20 {
     }
 }
 
+// Contrato simple para recibir ETH en modo fork
+contract FundsReceiver {
+    receive() external payable {}
+
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+}
+
 contract PresaleTest is Test {
     Presale presale;
     ERC20Mock saleToken;
     USDTMock usdtToken;
     USDCMock usdcToken;
     WETHMock wethToken;
+    FundsReceiver fundsReceiver;
 
     address saleTokenAddress_;
     address usdtAddress_;
     address usdcAddress_;
     address wethAddress_;
 
-    address fundsReceiverAddress_ = vm.addr(4);
+    address fundsReceiverAddress_;
+    // Chainlink ETH/USD Price Feed en Arbitrum One
     address dataFeedAddress_ = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
     uint256 maxSellingAmount_ = 30000000 * 1e18;
     uint256 startingTime_ = block.timestamp;
@@ -73,6 +85,10 @@ contract PresaleTest is Test {
         phases_[0] = [10000000 * 1e18, 5000, block.timestamp + 1000];
         phases_[1] = [10000000 * 1e18, 500, block.timestamp + 1000];
         phases_[2] = [10000000 * 1e18, 50, block.timestamp + 1000];
+
+        // Crear contrato para recibir fondos (compatible con fork)
+        fundsReceiver = new FundsReceiver();
+        fundsReceiverAddress_ = address(fundsReceiver);
 
         // Crear mock de token ERC20
         saleToken = new ERC20Mock();
@@ -318,6 +334,30 @@ contract PresaleTest is Test {
         vm.expectRevert("Sold out");
         presale.buyWithEth{value: amount_}();
         vm.stopPrank();
+    }
+
+    function testBuyWithEthSuccessfull() public {
+        vm.warp(phases_[0][2] - 500);
+        address buyer = vm.addr(2);
+        address fundsReceiverAddr = presale.fundsReceiverAddress();
+        vm.startPrank(buyer);
+        uint256 amount_ = 10 * 1e18;
+
+        // Calcular los tokens esperados usando el precio de ETH del feed
+        uint256 ethPrice = presale.getEtherPrice();
+        uint256 usdValue = amount_ * ethPrice / 1e18;
+        uint256 expectedTokens = usdValue * 1e6 / phases_[0][1];
+
+        // Guardar el balance inicial del fundsReceiverAddress
+        uint256 initialBalance = fundsReceiverAddr.balance;
+
+        vm.deal(buyer, amount_);
+        presale.buyWithEth{value: amount_}();
+        vm.stopPrank();
+        assertEq(presale.userTokenBalance(buyer), expectedTokens);
+        assertEq(fundsReceiverAddr.balance, initialBalance + amount_);
+        // Los tokens no se transfieren hasta claimTokens(), así que el balance del contrato sigue siendo maxSellingAmount_
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
     }
     /*
      function testClaimTokensFailureIfStillInPreSaleTime() public {
