@@ -35,14 +35,30 @@ contract USDCMock is ERC20 {
     }
 }
 
+contract WETHMock is ERC20 {
+    constructor() ERC20("Wrapped Ether", "WETH") {}
+
+    function decimals() public pure override returns (uint8) {
+        return 18;
+    }
+
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
+    }
+}
+
 contract PresaleTest is Test {
     Presale presale;
     ERC20Mock saleToken;
     USDTMock usdtToken;
     USDCMock usdcToken;
+    WETHMock wethToken;
+    
     address saleTokenAddress_;
     address usdtAddress_;
     address usdcAddress_;
+    address wethAddress_;
+    
     address fundsReceiverAddress_ = vm.addr(4);
     address dataFeedAddress_ = 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612;
     uint256 maxSellingAmount_ = 30000000 * 1e18;
@@ -69,6 +85,9 @@ contract PresaleTest is Test {
         usdcToken = new USDCMock();
         usdcAddress_ = address(usdcToken);
 
+        wethToken = new WETHMock();
+        wethAddress_ = address(wethToken);
+
         // Mintear tokens al contrato de test
         saleToken.mint(address(this), maxSellingAmount_);
 
@@ -82,6 +101,7 @@ contract PresaleTest is Test {
             saleTokenAddress_,
             usdtAddress_,
             usdcAddress_,
+            wethAddress_,
             fundsReceiverAddress_,
             dataFeedAddress_,
             maxSellingAmount_,
@@ -218,6 +238,32 @@ contract PresaleTest is Test {
         
         // Verificar que el fundsReceiverAddress recibió los USDC
         assertEq(usdcToken.balanceOf(fundsReceiverAddress_), amount_);
+        
+        // Verificar que el balance del usuario se actualizó correctamente
+        assertEq(presale.userTokenBalance(buyer), expectedTokens);
+        
+        // Verificar que el presale aún tiene los tokens (no se transfieren hasta claim)
+        assertEq(saleToken.balanceOf(address(presale)), maxSellingAmount_);
+    }
+
+    function testBuyWithWethSuccessfull() public {
+        vm.warp(phases_[0][2] - 500);
+        
+        address buyer = vm.addr(2);
+        uint256 amount_ = 10 * 1e18; // WETH tiene 18 decimales
+        
+        // Mintear WETH al comprador
+        wethToken.mint(buyer, amount_);
+
+        uint256 expectedTokens = amount_ * 1e6 / phases_[0][1];
+
+        vm.startPrank(buyer);
+        wethToken.approve(address(presale), amount_);
+        presale.buyWithStable(wethAddress_, amount_);
+        vm.stopPrank();
+        
+        // Verificar que el fundsReceiverAddress recibió los WETH
+        assertEq(wethToken.balanceOf(fundsReceiverAddress_), amount_);
         
         // Verificar que el balance del usuario se actualizó correctamente
         assertEq(presale.userTokenBalance(buyer), expectedTokens);

@@ -11,6 +11,7 @@ contract Presale is Ownable {
     using SafeERC20 for IERC20;
     address public usdtAddress;
     address public usdcAddress;
+    address public wethAddress;
     address public fundsReceiverAddress;
     uint256 public totalAmountSold;
     uint256 public maxSellingAmount;
@@ -32,6 +33,7 @@ contract Presale is Ownable {
         address saleTokenAddress_,
         address usdtAddress_,
         address usdcAddress_,
+        address wethAddress_,
         address fundsReceiverAddress_,
         address dataFeedAddress_,
         uint256 maxSellingAmount_,
@@ -48,6 +50,7 @@ contract Presale is Ownable {
         endingTime = endingTime_;
         dataFeedAddress = dataFeedAddress_;
         saleTokenAddress = saleTokenAddress_;
+        wethAddress = wethAddress_;
 
         require(startingTime < endingTime, "Starting time must be before ending time");
 
@@ -65,7 +68,7 @@ contract Presale is Ownable {
     function buyWithStable(address tokenUsedToBuy_, uint256 amount_) external {
         require(!isBlackListed[msg.sender], "You are blacklisted");
         require(block.timestamp >= startingTime && block.timestamp <= endingTime, "Presale is not active");
-        require(tokenUsedToBuy_ == usdtAddress || tokenUsedToBuy_ == usdcAddress, "Invalid token");
+        require(tokenUsedToBuy_ == usdtAddress || tokenUsedToBuy_ == usdcAddress || tokenUsedToBuy_ == wethAddress, "Invalid token");
 
         uint256 tokenAmountToReceive;
 
